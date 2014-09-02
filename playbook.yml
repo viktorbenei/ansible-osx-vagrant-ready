@@ -18,11 +18,16 @@
         validate='visudo -cf %s'"
     #
     # SSH config
+    - name: ensure .ssh folder is ok
+      file: path=/Users/vagrant/.ssh
+        state=directory
+        owner=vagrant
+        mode=0700
     - name: copy ssh key to remote's 'vagrant' user
       copy: src=public_keys/authorized_keys
         dest=/Users/vagrant/.ssh/authorized_keys
         owner=vagrant
-        mode=0644
+        mode=0600
     - name: sshd_config settings
       sudo: yes
       lineinfile: dest=/etc/sshd_config
@@ -37,21 +42,24 @@
         - { regexp: '^PermitEmptyPasswords yes', line: '', state: "absent" }
         - { regexp: '^PermitEmptyPasswords no', line: 'PermitEmptyPasswords no', state: "present" }
         # # LoginGraceTime 1m
-        - { regexp: 'LoginGraceTime', line: '', state: "absent" }
-        - { regexp: '^LoginGraceTime 1m', line: 'LoginGraceTime 1m', state: "present" }
+        - { regexp: '^LoginGraceTime', line: 'LoginGraceTime 1m', state: "present" }
         # PermitRootLogin no
         - { regexp: '^PermitRootLogin yes', line: '', state: "absent" }
         - { regexp: '^PermitRootLogin no', line: 'PermitRootLogin no', state: "present" }
         # # LogLevel 1m
-        - { regexp: 'LogLevel', line: '', state: "absent" }
-        - { regexp: '^LogLevel VERBOSE', line: 'LogLevel VERBOSE', state: "present" }
+        - { regexp: '^LogLevel', line: 'LogLevel VERBOSE', state: "present" }
         # UsePAM no -> if this is not set to 'no' then password authentication still possible!
         - { regexp: '^UsePAM yes', line: '', state: "absent" }
         - { regexp: '^UsePAM no', line: 'UsePAM no', state: "present" }
-
+        # UseDNS no -> for better speed
+        - { regexp: '^UseDNS yes', line: '', state: "absent" }
+        - { regexp: '^UseDNS no', line: 'UseDNS no', state: "present" }
+        
       # notify:
       #   - restart sshd
+    # - name: Restart sshd service
+    #   service: name=sshd state=restarted
 
-  handlers:
-    - name: restart sshd
-      service: name=sshd state=restarted
+  # handlers:
+    # - name: restart sshd
+    #   service: name=sshd state=restarted
