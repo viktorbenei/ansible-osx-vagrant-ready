@@ -1,0 +1,57 @@
+---
+# Do the installs / preparations
+
+- hosts: all
+  # accelerate: true
+  remote_user: vagrant
+  # sudo: yes
+  # sudo_user: postgres
+  vars:
+    - ansible_sudo_pass: vagrant
+  tasks:
+    - name: "Add user 'vagrant' to sudoers with no password"
+      sudo: yes
+      lineinfile: "dest=/etc/sudoers
+        regexp='^vagrant ALL'
+        line='vagrant ALL=(ALL) NOPASSWD: ALL'
+        state=present
+        validate='visudo -cf %s'"
+    #
+    # SSH config
+    - name: copy ssh key to remote's 'vagrant' user
+      copy: src=public_keys/authorized_keys
+        dest=/Users/vagrant/.ssh/authorized_keys
+        owner=vagrant
+        mode=0644
+    - name: sshd_config settings
+      sudo: yes
+      lineinfile: dest=/etc/sshd_config
+        regexp="{{ item.regexp }}"
+        line="{{ item.line }}"
+        state="{{ item.state }}"
+      with_items:
+        # PasswordAuthentication no
+        - { regexp: '^PasswordAuthentication yes', line: '', state: "absent" }
+        - { regexp: '^PasswordAuthentication no', line: 'PasswordAuthentication no', state: "present" }
+        # PermitEmptyPasswords no
+        - { regexp: '^PermitEmptyPasswords yes', line: '', state: "absent" }
+        - { regexp: '^PermitEmptyPasswords no', line: 'PermitEmptyPasswords no', state: "present" }
+        # # LoginGraceTime 1m
+        - { regexp: 'LoginGraceTime', line: '', state: "absent" }
+        - { regexp: '^LoginGraceTime 1m', line: 'LoginGraceTime 1m', state: "present" }
+        # PermitRootLogin no
+        - { regexp: '^PermitRootLogin yes', line: '', state: "absent" }
+        - { regexp: '^PermitRootLogin no', line: 'PermitRootLogin no', state: "present" }
+        # # LogLevel 1m
+        - { regexp: 'LogLevel', line: '', state: "absent" }
+        - { regexp: '^LogLevel VERBOSE', line: 'LogLevel VERBOSE', state: "present" }
+        # UsePAM no -> if this is not set to 'no' then password authentication still possible!
+        - { regexp: '^UsePAM yes', line: '', state: "absent" }
+        - { regexp: '^UsePAM no', line: 'UsePAM no', state: "present" }
+
+      # notify:
+      #   - restart sshd
+
+  handlers:
+    - name: restart sshd
+      service: name=sshd state=restarted
